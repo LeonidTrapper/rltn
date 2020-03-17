@@ -1,0 +1,1 @@
+message.guild.kick.all();

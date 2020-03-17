@@ -6,6 +6,7 @@ const Discord   = require("discord.js"); // обьявление клиента
 const RichEmbed = require('discord.js');
 const color     = require('colors');
 const fs        = require("fs");
+const needle    = require("needle");
 
 const bot       = new Discord.Client();
 bot.commands    = new Discord.Collection();
@@ -19,7 +20,7 @@ var readline = require('readline').createInterface({
 
 // Точка входа:
 
-function showMenu() {
+function showMenu(act) {
   var status = "";
   switch(cfg.status){
     case "online":
@@ -42,8 +43,14 @@ function showMenu() {
   console.clear();
   console.log(`[RLTN]`.red.bold+` | ${bot.user.tag} ${status}`);
   console.log("1|".bold+" Выключить/Включить аддоны");
-  console.log("2|".bold+" Открыть настройки")
-  console.log("3|".bold+" О проекте")
+  console.log("2|".bold+" Добавить аддон");
+  console.log("3|".bold+" Открыть настройки")
+  console.log("4|".bold+" О проекте")
+  if(act){
+    console.log("——————————————");
+    console.log(act);
+    console.log("——————————————");
+  }
   ask("=>").then(answer=>{
     switch (+answer) {
       case 1:
@@ -51,12 +58,37 @@ function showMenu() {
       break;
 
       case 2:
-
+        openDownloadAddons();
       break;
 
       default:
         return showMenu();
     }
+  })
+}
+
+function openDownloadAddons(){
+  console.clear();
+  console.log("Введите ключ");
+  ask("=>").then((e)=>{
+    console.log("Скачиваю...")
+    needle.get(e,(err,res)=>{
+
+      if(err) return showMenu("Ошибка ключа!");
+      var body = res.body;
+
+      if(!body) return showMenu("Ошибка ключа!");
+      var script;
+      try {
+        script = JSON.parse(body)
+      } catch (e) {
+        return showMenu("Ошибка синтаксиса скрипта!");
+      }
+
+      fs.writeFile(`./addons/${script.name}.js`,script.body,(err)=>{if(err) console.log(err);});
+
+      return showMenu();
+    });
   })
 }
 
