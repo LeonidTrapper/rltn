@@ -6,6 +6,7 @@
 * Пж не выдавай этот проект за свой
 * ReVolution (. Y. ) ALL RIGHT RESERVED
 */
+const host = "http://revolution.com/"; // сайт
 // Подключаем модули
 const protectid = require(`./system/protection.json`);
 const cfg       = require(`./system/cfg.json`);
@@ -31,24 +32,11 @@ var readline = require('readline').createInterface({
 // показ меню, act = сообщение
 function showMenu(act) {
   // парсим статус
-  var status = "";
-  switch(cfg.status){
-    case "online":
-      status = "●".green.bold;
-    break;
-    case "dnd":
-      status = "●".red.bold;
-    break;
-    case "idle":
-      status = "●".yellow.bold;
-    break;
-    case "invisible":
-      status = "●".bold;
-    break;
-
-    default:
-      status = "● пашол ты"
-  }
+  var status = cfg.status;
+  status=="online"    ? status = "●".green.bold:0;
+  status=="dnd"       ? status = "●".red.bold:0;
+  status=="idle"      ? status = "●".yellow.bold:0;
+  status=="invisible" ? status = "●".bold:0;
 
   console.clear();
   console.log(`[RLTN]`.red.bold+` | ${bot.user.tag} ${status}`);
@@ -143,7 +131,8 @@ function openDownloadAddons(){
   console.clear();
   console.log("Введите ключ");
   ask("=>").then((e)=>{
-    console.log("Скачиваю...")
+    console.log("Скачиваю...");
+    e = `${host}raw.php?id=${e};`
     needle.get(e,(err,res)=>{
 
       if(err) return showMenu("Ошибка ключа!");
