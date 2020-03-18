@@ -1,17 +1,25 @@
 // design fix 13.03.20
-// Подключенные штучки
+/*
+* Крч зря ты сюда полез...
+* Но автор Gobka#6664 && Leonid#9085
+* Discord : https://discord.gg/k7PruNp
+* Пж не выдавай этот проект за свой
+* ReVolution (. Y. ) ALL RIGHT RESERVED
+*/
+// Подключаем модули
 const protectid = require(`./system/protection.json`);
 const cfg       = require(`./system/cfg.json`);
-const Discord   = require("discord.js"); // обьявление клиента
+const Discord   = require("discord.js");
 const RichEmbed = require('discord.js');
 const color     = require('colors');
 const fs        = require("fs");
 const needle    = require("needle");
 
-const bot       = new Discord.Client();
-bot.commands    = new Discord.Collection();
+// клиент
+const bot       = new Discord.Client();     // ботяра
+bot.commands    = new Discord.Collection(); // набор комманд
 
-let exceptions = require('./system/exceptions.json');
+let exceptions = require('./system/exceptions.json'); // аддоны, которые работать не должны
 // ввод в консоль
 var readline = require('readline').createInterface({
   input: process.stdin,
@@ -20,7 +28,9 @@ var readline = require('readline').createInterface({
 
 // Точка входа:
 
+// показ меню, act = сообщение
 function showMenu(act) {
+  // парсим статус
   var status = "";
   switch(cfg.status){
     case "online":
@@ -67,6 +77,64 @@ function showMenu(act) {
   })
 }
 
+////////////////////////////////////////////////////////////////
+//    Визуальная менюшка
+////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////
+// Открыть список аддонов
+function openAddonsList() {
+  console.clear();
+  fs.readdir("./addons",(err,files)=>{
+
+    let jsfiles = files.filter(f=> f.split(".").pop()==="js");
+
+    for (var i = 0; i < jsfiles.length; i++) {
+      if(exceptions[jsfiles[i]]){
+        console.log(`[Не активен]`.red.bold,`${i}| ${jsfiles[i]}`);
+      }else{
+        console.log(`[Активен]`.green.bold,`${i}| ${jsfiles[i]}`);
+      }
+    }
+
+    console.log("——————————————");
+    console.log("Введите через пробел номера для переключения");
+    console.log("!enable для включения всех");
+    console.log("!disable для выключения всех");
+    ask("=>").then((e)=>{
+      if(e == "!enable"){
+        exceptions = {};
+        save();
+      }
+
+      if(e == "!disable"){
+        for (var i = 0; i < jsfiles.length; i++) {
+          exceptions[jsfiles[i]] = [];
+        }
+        save();
+      }
+
+      e = e.split(" ");
+
+      for (var i = 0; i < e.length; i++) {
+        if(exceptions[jsfiles[+e[i]]]){
+          delete exceptions[jsfiles[+e[i]]]
+        }else{
+          exceptions[jsfiles[+e[i]]] = [];
+        }
+      }
+      loadModules().then(()=>{
+        save();
+        showMenu();
+      }).catch((e)=>{
+        showMenu(`Не удалось загрузить аддоны:${e}`);
+      });
+    });
+  })
+}
+
+////////////////////////////////////////////////////////////////
+// Скачивание аддонов
 function openDownloadAddons(){
   console.clear();
   console.log("Введите ключ");
@@ -92,97 +160,77 @@ function openDownloadAddons(){
   })
 }
 
-function openAddonsList() {
-  console.clear();
-  fs.readdir("./addons",(err,files)=>{
+////////////////////////////////////////////////////////////////
+//    ФУНКЦИИ
+////////////////////////////////////////////////////////////////
 
-    let jsfiles = files.filter(f=> f.split(".").pop()==="js");
-
-    for (var i = 0; i < jsfiles.length; i++) {
-      if(exceptions[jsfiles[i]]){
-        console.log(`[Не активен]`.red.bold,`${i}| ${jsfiles[i]}`);
-      }else{
-        console.log(`[Активен]`.green.bold,`${i}| ${jsfiles[i]}`);
-      }
-    }
-
-    console.log("——————————————");
-    console.log("Введите через пробел номера для переключения");
-    console.log("!enable для включения всех");
-    console.log("!disable для выключения всех");
-    ask("=>").then((e)=>{
-      if(e == "!enable"){
-        for (var i = 0; i < jsfiles.length; i++) {
-          delete exceptions[jsfiles[i]]
-        }
-        save();
-      }
-
-      if(e == "!disable"){
-        for (var i = 0; i < jsfiles.length; i++) {
-          exceptions[jsfiles[i]] = [];
-        }
-        save();
-      }
-
-      e = e.split(" ");
-
-      for (var i = 0; i < e.length; i++) {
-        if(exceptions[jsfiles[+e[i]]]){
-          delete exceptions[jsfiles[+e[i]]]
-        }else{
-          exceptions[jsfiles[+e[i]]] = [];
-        }
-      }
-      save();
-      showMenu();
-
-    });
-  })
-}
-
+/////////////////////////////////////////////////////////
+// прогрузить все модули
 function loadModules() {
   return new Promise((resolve,reject)=>{
     bot.commands.clear();
+
     fs.readdir("./addons",(err,files)=>{
 
       let jsfiles = files.filter(f=> f.split(".").pop()==="js");
 
-      for (var i = 0; i < jsfiles.length; i++) {
-        if(exceptions[jsfiles[i]]) continue;
+      async function check(){ // функция чикирования
+        var errors =""; // переменная ошибок
 
-        findModule(jsfiles[i]).then((prop)=>{
-          bot.commands.set(prop.help.name, prop);
-        });
+        for (var i = 0; i < jsfiles.length; i++) { // цикл
+          if(exceptions[jsfiles[i]]) continue; // если аддон исключен
+
+          await findModule(jsfiles[i]).then((prop)=>{ // находим этот модуль
+            bot.commands.set(prop.help.name, prop); // добавляем его
+          }).catch(()=>{ // ошибочка
+            exceptions[jsfiles[i]] = [];  // исключаем его
+            errors += `\n|${jsfiles[i]}`; // логируем это
+          });
+        }
+        save(); // сохраняем
+        if(errors!="") reject(errors); // в случае ошибок кэтчим
+
+        resolve(true); // всё ок
       }
+      check(); // это функция выше
     })
-
-    resolve(true);
   })
 }
+/////////////////////////////////////////////////////////
+// Найти модуль
 
 async function findModule(module) {
   // fs
-  return new Promise((refuse,reject)=>{
-    fs.readdir("./addons", (err, files) => {
-      if(err) console.log(err);
+  return new Promise((refuse,reject)=>{ // возвращаем промис
+    fs.readdir("./addons", (err, files) => { // читаем директорию
+      if(err) console.log(err); // логируем ошибку
 
-      let jsfile = files.filter(f => f===module)
+      let jsfile = files.filter(f => f===module) // находим нужный аддон
 
-      const prop = require('./addons/' +jsfile[0]);
+      let prop; // файл
+      try {     // пробуем добавить
+        prop = require('./addons/' +jsfile[0]);
+      } catch (e) {
+        // режектим ошибочку
+        reject(false);
+      }
+      // ошибок нет
       refuse(prop);
     });
   });
 }
-
+/////////////////////////////////////////////////////////
+// Вопрос в консоль
 function ask(ask) {
-  return new Promise((refuse,reject)=>{
-    readline.question(ask,(action)=>{
-      refuse(action);
+  return new Promise((refuse,reject)=>{ // обещаем обещать обещать дальше
+    readline.question(ask,(action)=>{  // читаем линию
+      refuse(action); // возвращаем ответ
     })
   })
 }
 
+/////////////////////////////////////////////////////////
+// сохраняем так сказать
 function save(){
   fs.writeFile('./system/exceptions.json', JSON.stringify(exceptions), (err)=>{if(err) console.log(err);});
 }
@@ -203,16 +251,24 @@ let commandfile = bot.commands.get(cmd.slice(prefix.length));
 if(commandfile) commandfile.run(bot,message,args);
 });
 
-console.clear();
+/////////////////////////////////////////////////////////
+//  Точка входа
+/////////////////////////////////////////////////////////
+// иронично но точка входа внизу
+// привет с++
+console.clear(); // чистим консоль
 console.log(`[RLTN]`.red.bold+' Loading...');
-bot.login(cfg.token).then(()=>{
-  bot.user.setPresence({ status: cfg.status })
+bot.login(cfg.token).then(()=>{ // логинимся
+  bot.user.setPresence({ status: cfg.status }) // ставим статус
   console.log("[RLTN]".red.bold," Loading modules")
-  loadModules().then(()=>{
-    showMenu();
+  loadModules().then(()=>{ // грузим аддоны
+    showMenu(); // все гладко
+  }).catch(e=>{ // все не гладко
+    showMenu(`Не удалось загрузить некоторые аддоны:${e}`)
   })
-}).catch((e)=>{
+}).catch((e)=>{ // вход не удался
   console.clear();
   console.log(`[Revolution]`.red.bold+' | Вход не удался');
   bot.destroy();
 });
+/////////////////////////////////////////////////////////
