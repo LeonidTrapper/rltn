@@ -71,6 +71,10 @@ function showMenu(act) {
         openDownloadAddons();
       break;
 
+      case 4:
+        openCredits();
+      break;
+
       default:
         return showMenu();
     }
@@ -160,6 +164,19 @@ function openDownloadAddons(){
   })
 }
 
+function openCredits(){
+  console.clear();
+  	console.log(`|`.green.bold,`Revolution Full Rewrite`);
+  	console.log(`--------------------------`.rainbow);
+  	console.log(`|`.red,`Разработчики:`);
+  	console.log(` API Dev:`.yellow,`Goblka#6664`);
+  	console.log(` Addons Dev:`.yellow,`Leonid#9085`);
+  	console.log(`|`.magenta,`Website:`);
+  	console.log(` http://revolution.rf.gd/`.cyan.italic)
+  	ask("=>").then((e) => {
+  		showMenu();
+  	})
+}
 ////////////////////////////////////////////////////////////////
 //    ФУНКЦИИ
 ////////////////////////////////////////////////////////////////
